@@ -9,4 +9,11 @@ import (
 type Server struct {
 	*echo.Echo
 	l hclog.Logger
+
+	source InfoSource
+}
+
+// InfoSource is a provider of machine metadata.
+type InfoSource interface {
+	GetMachineInfo(string) (map[string]string, error)
 }

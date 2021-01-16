@@ -19,6 +19,8 @@ func New(parent hclog.Logger) *Server {
 
 	x.GET("/", x.peerInfo)
 
+	x.GET("/latest/meta-data/:key", x.getMetaData)
+
 	return x
 }
 
@@ -28,6 +30,10 @@ func (s *Server) peerInfo(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, err.Error())
 	}
 	return c.String(http.StatusOK, res)
+}
+
+func (s *Server) getMetaData(c echo.Context) error {
+	return c.String(http.StatusOK, c.Param("key"))
 }
 
 func (s *Server) getPeerID(r *http.Request) (string, error) {

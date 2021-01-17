@@ -15,5 +15,5 @@ type Server struct {
 
 // InfoSource is a provider of machine metadata.
 type InfoSource interface {
-	GetMachineInfo(string) (map[string]string, error)
+	GetMachineInfo(string, string) (string, error)
 }

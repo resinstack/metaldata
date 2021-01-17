@@ -1,13 +1,10 @@
 package http
 
 import (
-	"net"
 	"net/http"
-	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/labstack/echo/v4"
-	"github.com/mostlygeek/arp"
 )
 
 // New returns an HTTP server
@@ -19,8 +16,13 @@ func New(parent hclog.Logger) *Server {
 
 	x.GET("/", x.peerInfo)
 
+	// Handle most metadata keys
 	x.GET("/latest/meta-data/:key", x.getMetaData)
 
+	// Handle keys that are nested or otherwise need special
+	// handling.
+	x.GET("/latest/meta-data/placement/availability-zone", x.getAvailabilityZone)
+	x.GET("/latest/meta-data/public-keys/0/openssh-key", x.getSSHKey)
 	return x
 }
 
@@ -33,28 +35,26 @@ func (s *Server) peerInfo(c echo.Context) error {
 }
 
 func (s *Server) getMetaData(c echo.Context) error {
-	return c.String(http.StatusOK, c.Param("key"))
+	return s.handleMetadataRequest(c, c.Param("key"))
 }
 
-func (s *Server) getPeerID(r *http.Request) (string, error) {
-	addr, _, err := net.SplitHostPort(r.RemoteAddr)
+func (s *Server) getAvailabilityZone(c echo.Context) error {
+	return s.handleMetadataRequest(c, "availability-zone")
+}
+
+func (s *Server) getSSHKey(c echo.Context) error {
+	return s.handleMetadataRequest(c, "ssh-key")
+}
+
+func (s *Server) handleMetadataRequest(c echo.Context, key string) error {
+	hwaddr, err := s.getPeerID(c.Request())
 	if err != nil {
-		return "", err
+		return c.String(http.StatusInternalServerError, err.Error())
 	}
 
-	if addr == "127.0.0.1" || addr == "::1" {
-		// localhost is handled specially to allow testing to
-		// be done easier.  It is always returned with a
-		// hwaddr of all zeros.
-		return "00:00:00:00:00:00", nil
+	value, err := s.source.GetMachineInfo(hwaddr, key)
+	if err != nil {
+		return c.String(http.StatusInternalServerError, err.Error())
 	}
-
-	// Slightly wasteful, but in the general case this is probably
-	// the only time we'll hear from this machine as it slurps a
-	// bunch of data, so its worth just refreshing the in-memory
-	// cache.
-	arp.CacheUpdate()
-	hwaddr := strings.ToUpper(arp.Search(addr))
-	s.l.Trace("getPeerID", "address", addr, "hwaddr", hwaddr)
-	return hwaddr, nil
+	return c.String(http.StatusOK, value)
 }

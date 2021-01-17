@@ -1,9 +1,12 @@
 package main
 
 import (
+	"os"
+
 	"github.com/hashicorp/go-hclog"
 
 	"github.com/resinstack/metaldata/pkg/http"
+	"github.com/resinstack/metaldata/pkg/source/fs"
 )
 
 func main() {
@@ -13,5 +16,6 @@ func main() {
 	})
 
 	s := http.New(rootLog)
+	s.SetSource(fs.New(os.Getenv("MD_FSBASE")))
 	s.Start(":1234")
 }

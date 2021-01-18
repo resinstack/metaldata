@@ -17,12 +17,8 @@ func New(parent hclog.Logger) *Server {
 	x.GET("/", x.peerInfo)
 
 	// Handle most metadata keys
-	x.GET("/latest/meta-data/:key", x.getMetaData)
+	x.GET("/get/meta/:key", x.getMetaData)
 
-	// Handle keys that are nested or otherwise need special
-	// handling.
-	x.GET("/latest/meta-data/placement/availability-zone", x.getAvailabilityZone)
-	x.GET("/latest/meta-data/public-keys/0/openssh-key", x.getSSHKey)
 	return x
 }
 
@@ -36,14 +32,6 @@ func (s *Server) peerInfo(c echo.Context) error {
 
 func (s *Server) getMetaData(c echo.Context) error {
 	return s.handleMetadataRequest(c, c.Param("key"))
-}
-
-func (s *Server) getAvailabilityZone(c echo.Context) error {
-	return s.handleMetadataRequest(c, "availability-zone")
-}
-
-func (s *Server) getSSHKey(c echo.Context) error {
-	return s.handleMetadataRequest(c, "ssh-key")
 }
 
 func (s *Server) handleMetadataRequest(c echo.Context, key string) error {

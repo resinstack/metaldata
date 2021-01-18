@@ -17,5 +17,5 @@ func main() {
 
 	s := http.New(rootLog)
 	s.SetSource(fs.New(os.Getenv("MD_FSBASE")))
-	s.Start(":1234")
+	s.Start(os.Getenv("MD_BIND"))
 }

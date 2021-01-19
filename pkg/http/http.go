@@ -18,6 +18,7 @@ func New(parent hclog.Logger) *Server {
 
 	// Handle most metadata keys
 	x.GET("/get/meta/:key", x.getMetaData)
+	x.GET("/get/user", x.getUserData)
 
 	return x
 }
@@ -34,14 +35,31 @@ func (s *Server) getMetaData(c echo.Context) error {
 	return s.handleMetadataRequest(c, c.Param("key"))
 }
 
+func (s *Server) getUserData(c echo.Context) error {
+	hwaddr, err := s.getPeerID(c.Request())
+	if err != nil {
+		s.l.Warn("Error getting peer ID", "error", err)
+		return c.String(http.StatusInternalServerError, err.Error())
+	}
+
+	value, err := s.source.GetUserData(hwaddr)
+	if err != nil {
+		s.l.Warn("Error loading user data", "error", err)
+		return c.String(http.StatusInternalServerError, err.Error())
+	}
+	return c.String(http.StatusOK, value)
+}
+
 func (s *Server) handleMetadataRequest(c echo.Context, key string) error {
 	hwaddr, err := s.getPeerID(c.Request())
 	if err != nil {
+		s.l.Warn("Error getting peer ID", "error", err)
 		return c.String(http.StatusInternalServerError, err.Error())
 	}
 
 	value, err := s.source.GetMachineInfo(hwaddr, key)
 	if err != nil {
+		s.l.Warn("Error loading metadata", "error", err, "key", key)
 		return c.String(http.StatusInternalServerError, err.Error())
 	}
 	return c.String(http.StatusOK, value)

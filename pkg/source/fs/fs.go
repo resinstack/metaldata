@@ -42,3 +42,14 @@ func (fs *FS) GetMachineInfo(mach, key string) (string, error) {
 	}
 	return v, nil
 }
+
+// GetUserData loads the user data from disk and returns it as is.
+func (fs *FS) GetUserData(mach string) (string, error) {
+	mach = strings.ReplaceAll(mach, ":", "-")
+
+	bytes, err := ioutil.ReadFile(filepath.Join(fs.baseDir, mach+".userdata"))
+	if err != nil {
+		return "", err
+	}
+	return string(bytes[:]), nil
+}

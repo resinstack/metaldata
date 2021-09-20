@@ -28,6 +28,8 @@ jobs:
         with:
           push: true
           tags: "ghcr.io/${{ github.repository }}:${{ env.RELEASE_VERSION }}"
+          labels: |
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
   goreleaser:
     runs-on: ubuntu-latest
     steps:

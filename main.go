@@ -19,8 +19,11 @@ func main() {
 		Level: hclog.LevelFromString("TRACE"),
 	})
 
-	s := http.New(appLogger)
-	s.SetSource(fs.New(os.Getenv("MD_FSBASE")))
+	s := http.New(
+		http.WithLogger(appLogger),
+		http.WithInfoSource(fs.New(os.Getenv("MD_FSBASE"))),
+	)
+
 	bind := os.Getenv("MD_BIND")
 	if bind == "" {
 		bind = ":3030"

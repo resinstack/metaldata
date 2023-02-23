@@ -11,11 +11,15 @@ import (
 )
 
 // New returns an HTTP server
-func New(parent hclog.Logger) *Server {
+func New(opts ...Option) *Server {
 	x := &Server{
-		l: parent.Named("http"),
+		l: hclog.NewNullLogger(),
 		r: chi.NewRouter(),
 		n: &http.Server{},
+	}
+
+	for _, o := range opts {
+		o(x)
 	}
 
 	x.r.Get("/", x.peerInfo)

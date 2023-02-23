@@ -22,3 +22,7 @@ type InfoSource interface {
 	GetMachineInfo(string, string) (string, error)
 	GetUserData(string) (string, error)
 }
+
+// Option functions enable variadic option passing during
+// initialization.
+type Option func(*Server)

@@ -8,11 +8,6 @@ import (
 	"github.com/mostlygeek/arp"
 )
 
-// SetSource set up the source that will be served by this instance.
-func (s *Server) SetSource(i InfoSource) {
-	s.source = i
-}
-
 func (s *Server) getPeerID(r *http.Request) (string, error) {
 	addr, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {

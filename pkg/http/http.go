@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hashicorp/go-hclog"
@@ -25,6 +26,12 @@ func New(opts ...Option) *Server {
 	x.r.Get("/", x.peerInfo)
 	x.r.Get("/get/meta/{key}", x.getMetaData)
 	x.r.Get("/get/user", x.getUserData)
+
+	if _, ok := os.LookupEnv("MD_DO_COMPAT"); ok {
+		x.l.Info("DigitalOcean compatible user-data is enabled!")
+		x.r.Get("/metadata/v1/user-data", x.getUserData)
+	}
+
 	return x
 }
 
@@ -99,5 +106,5 @@ func (s *Server) handleMetadataRequest(w http.ResponseWriter, r *http.Request, k
 		s.jsonError(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	fmt.Fprint(w, value)
+	fmt.Fprint(w, value+"\r\n")
 }

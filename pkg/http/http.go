@@ -1,66 +1,99 @@
 package http
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/hashicorp/go-hclog"
-	"github.com/labstack/echo/v4"
 )
 
 // New returns an HTTP server
 func New(parent hclog.Logger) *Server {
 	x := &Server{
-		l:    parent.Named("http"),
-		Echo: echo.New(),
+		l: parent.Named("http"),
+		r: chi.NewRouter(),
+		n: &http.Server{},
 	}
 
-	x.GET("/", x.peerInfo)
-
-	// Handle most metadata keys
-	x.GET("/get/meta/:key", x.getMetaData)
-	x.GET("/get/user", x.getUserData)
-
+	x.r.Get("/", x.peerInfo)
+	x.r.Get("/get/meta/{key}", x.getMetaData)
+	x.r.Get("/get/user", x.getUserData)
 	return x
 }
 
-func (s *Server) peerInfo(c echo.Context) error {
-	res, err := s.getPeerID(c.Request())
+// Serve binds and serves http on the bound socket.  An error will be
+// returned if the server cannot initialize.
+func (s *Server) Serve(bind string) error {
+	s.l.Info("HTTP is starting")
+	s.n.Addr = bind
+	s.n.Handler = s.r
+	return s.n.ListenAndServe()
+}
+
+// Shutdown gracefully shuts down the server.
+func (s *Server) Shutdown(ctx context.Context) error {
+	return s.n.Shutdown(ctx)
+}
+
+func (s *Server) jsonError(w http.ResponseWriter, r *http.Request, rc int, err error) {
+	w.WriteHeader(rc)
+	enc := json.NewEncoder(w)
+	err = enc.Encode(struct {
+		Error error
+	}{
+		Error: err,
+	})
 	if err != nil {
-		return c.String(http.StatusInternalServerError, err.Error())
+		fmt.Fprintf(w, "Error writing json error response: %v", err)
 	}
-	return c.String(http.StatusOK, res)
 }
 
-func (s *Server) getMetaData(c echo.Context) error {
-	return s.handleMetadataRequest(c, c.Param("key"))
+func (s *Server) peerInfo(w http.ResponseWriter, r *http.Request) {
+	res, err := s.getPeerID(r)
+	if err != nil {
+		s.jsonError(w, r, http.StatusInternalServerError, err)
+		return
+	}
+	fmt.Fprint(w, res)
 }
 
-func (s *Server) getUserData(c echo.Context) error {
-	hwaddr, err := s.getPeerID(c.Request())
+func (s *Server) getMetaData(w http.ResponseWriter, r *http.Request) {
+	s.handleMetadataRequest(w, r, chi.URLParam(r, "key"))
+}
+
+func (s *Server) getUserData(w http.ResponseWriter, r *http.Request) {
+	hwaddr, err := s.getPeerID(r)
 	if err != nil {
 		s.l.Warn("Error getting peer ID", "error", err)
-		return c.String(http.StatusInternalServerError, err.Error())
+		s.jsonError(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
 	value, err := s.source.GetUserData(hwaddr)
 	if err != nil {
 		s.l.Warn("Error loading user data", "error", err)
-		return c.String(http.StatusInternalServerError, err.Error())
+		s.jsonError(w, r, http.StatusInternalServerError, err)
+		return
 	}
-	return c.String(http.StatusOK, value)
+	fmt.Fprint(w, value)
 }
 
-func (s *Server) handleMetadataRequest(c echo.Context, key string) error {
-	hwaddr, err := s.getPeerID(c.Request())
+func (s *Server) handleMetadataRequest(w http.ResponseWriter, r *http.Request, key string) {
+	hwaddr, err := s.getPeerID(r)
 	if err != nil {
 		s.l.Warn("Error getting peer ID", "error", err)
-		return c.String(http.StatusInternalServerError, err.Error())
+		s.jsonError(w, r, http.StatusInternalServerError, err)
+		return
 	}
 
 	value, err := s.source.GetMachineInfo(hwaddr, key)
 	if err != nil {
 		s.l.Warn("Error loading metadata", "error", err, "key", key)
-		return c.String(http.StatusInternalServerError, err.Error())
+		s.jsonError(w, r, http.StatusInternalServerError, err)
+		return
 	}
-	return c.String(http.StatusOK, value)
+	fmt.Fprint(w, value)
 }
